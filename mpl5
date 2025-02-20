@@ -1,0 +1,99 @@
+section .data
+    msg1 db "Count of Positive numbers: "
+    len1 equ $ - msg1
+
+    msg2 db "Count of Negative numbers: "
+    len2 equ $ - msg2
+
+    prompt db "Enter a number (positive or negative): ", 0
+    prompt_len equ $ - prompt
+
+    nLine db 0xA, 0
+    lenNLine equ $ - nLine
+
+%macro print 2
+    mov rax, 01
+    mov rdi, 01
+    mov rsi, %1
+    mov rdx, %2
+    syscall
+%endmacro
+
+%macro newLine 0
+    mov rax, 01
+    mov rdi, 01
+    mov rsi, nLine
+    mov rdx, lenNLine
+    syscall
+%endmacro
+
+section .bss
+    userInput resb 10      ; Reserve 10 bytes for user input
+    positiveCount resb 2
+    negativeCount resb 2
+    inputNumber resb 1     ; Reserve space for a single character number input
+    counter resb 1         ; Reserve 1 byte for counter (number of inputs to process)
+
+section .text
+global _start
+_start:
+    ; Initialize counters
+    mov byte [positiveCount], 0
+    mov byte [negativeCount], 0
+    mov byte [counter], 5   ; Initialize counter to 5 (number of inputs to process)
+
+process_input:
+    ; Print prompt message for user input
+    print prompt, prompt_len
+    
+    ; Read user input (10 bytes max)
+    mov rax, 0          ; sys_read
+    mov rdi, 0          ; file descriptor 0 (stdin)
+    mov rsi, userInput   ; buffer to store input
+    mov rdx, 10         ; max number of bytes to read
+    syscall
+
+    ; Convert the input (a character) to a signed number
+    mov al, [userInput] ; Load the first byte of user input
+    sub al, 30h         ; Convert from ASCII to integer
+
+    ; Check if the number is positive or negative
+    test al, al         ; Check if the number is positive or negative
+    js is_negative      ; If the result is negative, jump to negative processing
+
+    ; Positive number processing
+    inc byte [positiveCount]
+    jmp check_next_input
+
+is_negative:
+    ; Negative number processing
+    inc byte [negativeCount]
+
+check_next_input:
+    ; Decrement the counter
+    dec byte [counter]
+    jnz process_input   ; If there are more inputs to process, repeat
+
+    ; Print the result of positive count
+    print msg1, len1
+    mov al, [positiveCount]
+    call displayCount
+    newLine
+
+    ; Print the result of negative count
+    print msg2, len2
+    mov al, [negativeCount]
+    call displayCount
+    newLine
+
+    ; Exit the program
+    mov rax, 60
+    mov rdi, 0
+    syscall
+
+displayCount:
+    ; Convert count (AL) to ASCII and display it
+    add al, 30h
+    mov [inputNumber], al
+    print inputNumber, 1
+    ret
